@@ -1,5 +1,6 @@
 <?php
 
+use Drupal\Core\Language\LanguageInterface;
 use Drupal\node\NodeInterface;
 
 
@@ -11,7 +12,7 @@ function content_translation_workflow_node_presave(NodeInterface $node) {
   if ($node->getLoadedRevisionId() && ($original = $node_storage->loadRevision($node->getLoadedRevisionId())) && $original->hasTranslation($node->language()->getId())) {
     $original = $original->getTranslation($node->language()->getId());
     // Note: We just want to copy when we actually create new default revisions.
-    if ($node->isDefaultRevision(TRUE) && $node->get('moderation_state')->target_id !== $original->get('moderation_state')->target_id) {
+    if ($node->isDefaultRevision() && $node->get('moderation_state')->target_id !== $original->get('moderation_state')->target_id) {
       if ($node->get('moderation_state')->target_id === 'published') {
 
         $forward_revision = clone $node;
@@ -42,7 +43,7 @@ function content_translation_workflow_node_presave(NodeInterface $node) {
           $revision_id = array_keys($result)[0];
 
           /** @var \Drupal\node\NodeInterface $node_revision */
-          $node_revision= $node_storage->loadRevision($revision_id);
+          $node_revision = $node_storage->loadRevision($revision_id);
           $revision_translation = $node_revision->getTranslation($language->getId());
 
           $entity_type = $node->getEntityType();
@@ -59,11 +60,48 @@ function content_translation_workflow_node_presave(NodeInterface $node) {
               $translation->set($field_name, $field_item->getValue());
             }
           }
+
+          // Now we have synched in the latest published revision.
+          // The next problem which appears is that the editor no longer has an
+          // idea, what the "latest" revision might be.
+          // The workaround applied here is to add another forward revision,
+          // which contains the revision we just published, as well as a copy
+          // of every other translation.
         }
+        $node->setPublished(TRUE);
+
+        $node->contentTranslationWorkflowAdditionalEntity = $forward_revision;
       }
     }
   }
+}
 
-  //
+function content_translation_workflow_node_update(NodeInterface $node) {
+  if (!empty($node->contentTranslationWorkflowAdditionalEntity) && ($forward_revision = $node->contentTranslationWorkflowAdditionalEntity) && $forward_revision instanceof NodeInterface) {
+    unset($node->contentTranslationWorkflowAdditionalEntity);
+
+    $forward_revision->setNewRevision(TRUE);
+
+    // We need a new forward revision when there is at least one not published
+    // translation.
+    $need_forward_translation = array_reduce($forward_revision->getTranslationLanguages(), function ($carry, LanguageInterface $language) use ($forward_revision) {
+      if (!$forward_revision->getTranslation($language->getId())->moderation_state->entity->isPublishedState()) {
+        return [TRUE, $forward_revision->getTranslation($language->getId())];
+      }
+      else {
+        return $carry;
+      }
+    }, [FALSE, NULL]);
+    /** @var \Drupal\node\NodeInterface $forward_translation */
+    list($need_forward_translation, $forward_translation) = $need_forward_translation;
+
+    if ($need_forward_translation) {
+      foreach ($forward_revision->getTranslationLanguages() as $language) {
+        $forward_revision_translation = $forward_revision->getTranslation($language->getId());
+        $forward_revision_translation->isDefaultRevision(FALSE);
+      }
+      $forward_translation->save();
+    }
+  }
 }
 

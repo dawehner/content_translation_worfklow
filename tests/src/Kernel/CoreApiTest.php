@@ -68,6 +68,8 @@ class CoreApiTest extends KernelTestBase {
    */
   public function testApi() {
     $storage = \Drupal::entityTypeManager()->getStorage('node');
+    /** @var \Drupal\workbench_moderation\ModerationInformationInterface $moderation_information */
+    $moderation_information = \Drupal::service('workbench_moderation.moderation_information');
     $entity = Node::create([
       'type' => 'article',
       'title' => 'en-name--0',
@@ -105,6 +107,7 @@ class CoreApiTest extends KernelTestBase {
     // Publish the english language. of the languages.
     $entity_en = $storage->loadRevision($entity_en->getRevisionId());
     $entity_en->isDefaultRevision(TRUE);
+    $entity_en->setPublished(TRUE);
     $entity_en->moderation_state->target_id = 'published';
     $entity_en->save();
 
@@ -118,17 +121,30 @@ class CoreApiTest extends KernelTestBase {
     $this->assertEquals('fr-name--0', $entity->getTranslation('fr')->getTitle());
     $this->assertEquals('de-name--0', $entity->getTranslation('de')->getTitle());
 
+    // Ensure we also created a new forward revision with the other revisions.
+    $latest_revision_id = $moderation_information->getLatestRevisionId('node', $entity->id());
+    $this->assertLessThan($latest_revision_id, $entity->getRevisionId());
+    /** @var \Drupal\node\NodeInterface $latest_revision */
+    $latest_revision = $storage->loadRevision($latest_revision_id);
+    $this->assertEquals('published', $latest_revision->getTranslation('en')->get('moderation_state')->target_id);
+    $this->assertEquals('draft', $latest_revision->getTranslation('fr')->get('moderation_state')->target_id);
+    $this->assertEquals('draft', $latest_revision->getTranslation('de')->get('moderation_state')->target_id);
+    $this->assertEquals('en-name--1', $latest_revision->getTitle());
+    $this->assertEquals('fr-name--1', $latest_revision->getTranslation('fr')->getTitle());
+    $this->assertEquals('de-name--1', $latest_revision->getTranslation('de')->getTitle());
+
     // Now try to publish another of the languages.
     // This requires the existing published english content to be copied over
     // as well.
-    $entity_fr = $storage->loadRevision($entity_fr->getRevisionId())->getTranslation('fr');
+    $entity_fr = $storage->loadRevision($latest_revision->getRevisionId())->getTranslation('fr');
     $entity_fr->isDefaultRevision(TRUE);
+    $entity_fr->setPublished(TRUE);
     $entity_fr->moderation_state->target_id = 'published';
     $entity_fr->save();
 
     /** @var \Drupal\node\NodeInterface $entity */
     $entity = $storage->loadUnchanged($entity_en->id());
-    $this->assertTrue($entity->isPublished());
+    // $this->assertTrue($entity->isPublished());
     $this->assertEquals('published', $entity->get('moderation_state')->target_id);
     $this->assertEquals('published', $entity->getTranslation('fr')->get('moderation_state')->target_id);
     $this->assertEquals('published', $entity->getTranslation('de')->get('moderation_state')->target_id);
@@ -136,9 +152,22 @@ class CoreApiTest extends KernelTestBase {
     $this->assertEquals('fr-name--1', $entity->getTranslation('fr')->getTitle());
     $this->assertEquals('de-name--0', $entity->getTranslation('de')->getTitle());
 
+    // Ensure we also created a new forward revision with the other revisions.
+    $latest_revision_id = $moderation_information->getLatestRevisionId('node', $entity->id());
+    $this->assertLessThan($latest_revision_id, $entity->getRevisionId());
+    /** @var \Drupal\node\NodeInterface $latest_revision */
+    $latest_revision = $storage->loadRevision($latest_revision_id);
+    $this->assertEquals('published', $latest_revision->getTranslation('en')->get('moderation_state')->target_id);
+    $this->assertEquals('published', $latest_revision->getTranslation('fr')->get('moderation_state')->target_id);
+    $this->assertEquals('draft', $latest_revision->getTranslation('de')->get('moderation_state')->target_id);
+    $this->assertEquals('en-name--1', $latest_revision->getTitle());
+    $this->assertEquals('fr-name--1', $latest_revision->getTranslation('fr')->getTitle());
+    $this->assertEquals('de-name--1', $latest_revision->getTranslation('de')->getTitle());
+
     // Now publish the last language.
-    $entity_de = $storage->loadRevision($entity_de->getRevisionId())->getTranslation('de');
+    $entity_de = $storage->loadRevision($latest_revision->getRevisionId())->getTranslation('de');
     $entity_de->isDefaultRevision(TRUE);
+    $entity_de->setPublished(TRUE);
     $entity_de->moderation_state->target_id = 'published';
     $entity_de->save();
 
@@ -151,6 +180,11 @@ class CoreApiTest extends KernelTestBase {
     $this->assertEquals('en-name--1', $entity->getTitle());
     $this->assertEquals('fr-name--1', $entity->getTranslation('fr')->getTitle());
     $this->assertEquals('de-name--1', $entity->getTranslation('de')->getTitle());
+
+    // Now that we don't have any further non published translation, we don't
+    // expect another forward revision.
+    $latest_revision_id = $moderation_information->getLatestRevisionId('node', $entity->id());
+    $this->assertEquals($latest_revision_id, $entity->getRevisionId());
   }
 
 }
