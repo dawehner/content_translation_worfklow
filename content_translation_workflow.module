@@ -42,7 +42,7 @@ function content_translation_workflow_node_presave(NodeInterface $node) {
           $revision_translation = $node_revision->getTranslation($language->getId());
 
           $entity_type = $node->getEntityType();
-          foreach ($revision_translation as $field_name => $field_item) {
+          foreach ($revision_translation->getFields() as $field_name => $field_item) {
             // These values are not supposed to be changed/copied over.
             if (!in_array($field_name, [$entity_type->getKey('revision'), $entity_type->getKey('id'), $entity_type->getKey('langcode'), $entity_type->getKey('uuid')], TRUE)) {
               /** @var \Drupal\Core\Field\FieldItemListInterface $field_item */
