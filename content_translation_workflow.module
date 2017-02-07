@@ -10,8 +10,12 @@ function content_translation_workflow_node_presave(NodeInterface $node) {
   /** @var \Drupal\node\NodeInterface $original */
   if ($node->getLoadedRevisionId() && ($original = $node_storage->loadRevision($node->getLoadedRevisionId())) && $original->hasTranslation($node->language()->getId())) {
     $original = $original->getTranslation($node->language()->getId());
-    if ($node->get('moderation_state')->target_id !== $original->get('moderation_state')->target_id) {
+    // Note: We just want to copy when we actually create new default revisions.
+    if ($node->isDefaultRevision(TRUE) && $node->get('moderation_state')->target_id !== $original->get('moderation_state')->target_id) {
       if ($node->get('moderation_state')->target_id === 'published') {
+
+        $forward_revision = clone $node;
+
         foreach ($node->getTranslationLanguages() as $language) {
 
           // Just copy over other translations.

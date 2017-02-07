@@ -104,11 +104,12 @@ class CoreApiTest extends KernelTestBase {
 
     // Publish the english language. of the languages.
     $entity_en = $storage->loadRevision($entity_en->getRevisionId());
+    $entity_en->isDefaultRevision(TRUE);
     $entity_en->moderation_state->target_id = 'published';
     $entity_en->save();
 
     /** @var \Drupal\node\NodeInterface $entity */
-    $entity = Node::load($entity_en->id());
+    $entity = $storage->loadUnchanged($entity_en->id());
     $this->assertTrue($entity->isPublished());
     $this->assertEquals('published', $entity->get('moderation_state')->target_id);
     $this->assertEquals('published', $entity->getTranslation('fr')->get('moderation_state')->target_id);
@@ -121,11 +122,12 @@ class CoreApiTest extends KernelTestBase {
     // This requires the existing published english content to be copied over
     // as well.
     $entity_fr = $storage->loadRevision($entity_fr->getRevisionId())->getTranslation('fr');
+    $entity_fr->isDefaultRevision(TRUE);
     $entity_fr->moderation_state->target_id = 'published';
     $entity_fr->save();
 
     /** @var \Drupal\node\NodeInterface $entity */
-    $entity = Node::load($entity_en->id());
+    $entity = $storage->loadUnchanged($entity_en->id());
     $this->assertTrue($entity->isPublished());
     $this->assertEquals('published', $entity->get('moderation_state')->target_id);
     $this->assertEquals('published', $entity->getTranslation('fr')->get('moderation_state')->target_id);
@@ -136,11 +138,12 @@ class CoreApiTest extends KernelTestBase {
 
     // Now publish the last language.
     $entity_de = $storage->loadRevision($entity_de->getRevisionId())->getTranslation('de');
+    $entity_de->isDefaultRevision(TRUE);
     $entity_de->moderation_state->target_id = 'published';
     $entity_de->save();
 
     /** @var \Drupal\node\NodeInterface $entity */
-    $entity = Node::load($entity_en->id());
+    $entity = $storage->loadUnchanged($entity_en->id());
     $this->assertTrue($entity->isPublished());
     $this->assertEquals('published', $entity->get('moderation_state')->target_id);
     $this->assertEquals('published', $entity->getTranslation('fr')->get('moderation_state')->target_id);
