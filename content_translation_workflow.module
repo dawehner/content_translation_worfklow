@@ -11,8 +11,10 @@ function content_translation_workflow_node_presave(NodeInterface $node) {
   /** @var \Drupal\node\NodeInterface $original */
   if ($node->getLoadedRevisionId() && ($original = $node_storage->loadRevision($node->getLoadedRevisionId())) && $original->hasTranslation($node->language()->getId())) {
     $original = $original->getTranslation($node->language()->getId());
+    /** @var \Drupal\node\NodeInterface $default_node */
+    $default_node = $node_storage->load($node->id())->getTranslation($node->language()->getId());
     // Note: We just want to copy when we actually create new default revisions.
-    if ($node->isDefaultRevision() && $node->get('moderation_state')->target_id !== $original->get('moderation_state')->target_id) {
+    if ($default_node->isPublished() && $node->get('moderation_state')->target_id !== $original->get('moderation_state')->target_id) {
       if ($node->get('moderation_state')->target_id === 'published') {
 
         $forward_revision = clone $node;
@@ -44,6 +46,10 @@ function content_translation_workflow_node_presave(NodeInterface $node) {
 
           /** @var \Drupal\node\NodeInterface $node_revision */
           $node_revision = $node_storage->loadRevision($revision_id);
+
+          if (!$node_revision->hasTranslation($language->getId())) {
+            continue;
+          }
           $revision_translation = $node_revision->getTranslation($language->getId());
 
           $entity_type = $node->getEntityType();
@@ -80,28 +86,8 @@ function content_translation_workflow_node_update(NodeInterface $node) {
   if (!empty($node->contentTranslationWorkflowAdditionalEntity) && ($forward_revision = $node->contentTranslationWorkflowAdditionalEntity) && $forward_revision instanceof NodeInterface) {
     unset($node->contentTranslationWorkflowAdditionalEntity);
 
-    $forward_revision->setNewRevision(TRUE);
-
-    // We need a new forward revision when there is at least one not published
-    // translation.
-    $need_forward_translation = array_reduce($forward_revision->getTranslationLanguages(), function ($carry, LanguageInterface $language) use ($forward_revision) {
-      if (!$forward_revision->getTranslation($language->getId())->moderation_state->entity->isPublishedState()) {
-        return [TRUE, $forward_revision->getTranslation($language->getId())];
-      }
-      else {
-        return $carry;
-      }
-    }, [FALSE, NULL]);
-    /** @var \Drupal\node\NodeInterface $forward_translation */
-    list($need_forward_translation, $forward_translation) = $need_forward_translation;
-
-    if ($need_forward_translation) {
-      foreach ($forward_revision->getTranslationLanguages() as $language) {
-        $forward_revision_translation = $forward_revision->getTranslation($language->getId());
-        $forward_revision_translation->isDefaultRevision(FALSE);
-      }
-      $forward_translation->save();
-    }
+    \Drupal::queue('content_translation_workflow__add_new_forward_revision')
+      ->createItem($forward_revision);
   }
 }
 

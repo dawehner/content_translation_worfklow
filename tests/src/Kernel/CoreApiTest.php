@@ -7,6 +7,7 @@ use Drupal\language\Entity\ConfigurableLanguage;
 use Drupal\language\Entity\ContentLanguageSettings;
 use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
+use Symfony\Component\HttpKernel\Event\PostResponseEvent;
 
 /**
  * Tests the core API for revision translations.
@@ -63,6 +64,11 @@ class CoreApiTest extends KernelTestBase {
     $this->installConfig('workbench_moderation');
   }
 
+  protected function ensureForwardRevision() {
+    \Drupal::service('content_translation_workflow.event_subscriber.end_of_request_queue_executor')
+      ->onTerminate();
+  }
+
   /**
    * Tests the Drupal core entity API with revisions and translations.
    */
@@ -110,6 +116,7 @@ class CoreApiTest extends KernelTestBase {
     $entity_en->setPublished(TRUE);
     $entity_en->moderation_state->target_id = 'published';
     $entity_en->save();
+    $this->ensureForwardRevision();
 
     /** @var \Drupal\node\NodeInterface $entity */
     $entity = $storage->loadUnchanged($entity_en->id());
@@ -141,6 +148,7 @@ class CoreApiTest extends KernelTestBase {
     $entity_fr->setPublished(TRUE);
     $entity_fr->moderation_state->target_id = 'published';
     $entity_fr->save();
+    $this->ensureForwardRevision();
 
     /** @var \Drupal\node\NodeInterface $entity */
     $entity = $storage->loadUnchanged($entity_en->id());
@@ -170,6 +178,7 @@ class CoreApiTest extends KernelTestBase {
     $entity_de->setPublished(TRUE);
     $entity_de->moderation_state->target_id = 'published';
     $entity_de->save();
+    $this->ensureForwardRevision();
 
     /** @var \Drupal\node\NodeInterface $entity */
     $entity = $storage->loadUnchanged($entity_en->id());

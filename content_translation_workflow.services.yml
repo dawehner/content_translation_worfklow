@@ -1,0 +1,5 @@
+services:
+  content_translation_workflow.event_subscriber.end_of_request_queue_executor:
+    class: \Drupal\content_translation_workflow\EventSubscriber\EndofRequestQueueExecutor
+    tags:
+      - { name: event_subscriber }
