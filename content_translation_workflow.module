@@ -1,8 +1,14 @@
 <?php
 
-use Drupal\Core\Language\LanguageInterface;
 use Drupal\node\NodeInterface;
 
+
+/**
+ * Note: We just want to copy when we actually create new default revisions.
+ */
+function _content_translation_worklow_is_republished_save(NodeInterface $default_node, NodeInterface $saved_node, NodeInterface $presaved_node) {
+  return $default_node->isPublished() && $saved_node->get('moderation_state')->target_id !== $presaved_node->get('moderation_state')->target_id && $saved_node->get('moderation_state')->target_id === 'published';
+}
 
 function content_translation_workflow_node_presave(NodeInterface $node) {
   $node_storage = \Drupal::entityTypeManager()->getStorage('node');
@@ -13,71 +19,65 @@ function content_translation_workflow_node_presave(NodeInterface $node) {
     $original = $original->getTranslation($node->language()->getId());
     /** @var \Drupal\node\NodeInterface $default_node */
     $default_node = $node_storage->load($node->id())->getTranslation($node->language()->getId());
-    // Note: We just want to copy when we actually create new default revisions.
-    if ($default_node->isPublished() && $node->get('moderation_state')->target_id !== $original->get('moderation_state')->target_id) {
-      if ($node->get('moderation_state')->target_id === 'published') {
-
-        $forward_revision = clone $node;
-
-        foreach ($node->getTranslationLanguages() as $language) {
-
-          // Just copy over other translations.
-          if ($language->getId() === $node->language()->getId()) {
-            continue;
-          }
-
-          $translation = $node->getTranslation($language->getId());
-
-          // When the translation isn't published either, saving the entity
-          // would make the translation unpublished. Therefore we have to sync
-          // the latest published translation in.
-
-          // First find the latest affected translation, which is published.
-          $result = $node_storage->getQuery()
-            ->allRevisions()
-            ->condition('langcode', $language->getId())
-            ->condition('revision_translation_affected', TRUE)
-            ->condition('moderation_state.target_id', 'published')
-            ->condition('nid', $node->id())
-            ->sort('vid', 'DESC')
-            ->pager(1)
-            ->execute();
-          $revision_id = array_keys($result)[0];
-
-          /** @var \Drupal\node\NodeInterface $node_revision */
-          $node_revision = $node_storage->loadRevision($revision_id);
-
-          if (!$node_revision->hasTranslation($language->getId())) {
-            continue;
-          }
-          $revision_translation = $node_revision->getTranslation($language->getId());
-
-          $entity_type = $node->getEntityType();
-          foreach ($revision_translation->getFields() as $field_name => $field_item) {
-            // These values are not supposed to be changed/copied over.
-            $excluded_field_names = [
-              $entity_type->getKey('revision'),
-              $entity_type->getKey('id'),
-              $entity_type->getKey('langcode'),
-              $entity_type->getKey('uuid'),
-            ];
-            if (!in_array($field_name, $excluded_field_names, TRUE)) {
-              /** @var \Drupal\Core\Field\FieldItemListInterface $field_item */
-              $translation->set($field_name, $field_item->getValue());
-            }
-          }
-
-          // Now we have synched in the latest published revision.
-          // The next problem which appears is that the editor no longer has an
-          // idea, what the "latest" revision might be.
-          // The workaround applied here is to add another forward revision,
-          // which contains the revision we just published, as well as a copy
-          // of every other translation.
+    if (_content_translation_worklow_is_republished_save($default_node, $node, $original)) {
+      $forward_revision = clone $node;
+      foreach ($node->getTranslationLanguages() as $language) {
+        // Just copy over other translations.
+        if ($language->getId() === $node->language()->getId()) {
+          continue;
         }
-        $node->setPublished(TRUE);
 
-        $node->contentTranslationWorkflowAdditionalEntity = $forward_revision;
+        $translation = $node->getTranslation($language->getId());
+
+        // When the translation isn't published either, saving the entity
+        // would make the translation unpublished. Therefore we have to sync
+        // the latest published translation in.
+
+        // First find the latest affected translation, which is published.
+        $result = $node_storage->getQuery()
+          ->allRevisions()
+          ->condition('langcode', $language->getId())
+          ->condition('revision_translation_affected', TRUE)
+          ->condition('moderation_state.target_id', 'published')
+          ->condition('nid', $node->id())
+          ->sort('vid', 'DESC')
+          ->pager(1)
+          ->execute();
+        $revision_id = array_keys($result)[0];
+
+        /** @var \Drupal\node\NodeInterface $node_revision */
+        $node_revision = $node_storage->loadRevision($revision_id);
+
+        if (!$node_revision->hasTranslation($language->getId())) {
+          continue;
+        }
+        $revision_translation = $node_revision->getTranslation($language->getId());
+
+        $entity_type = $node->getEntityType();
+        foreach ($revision_translation->getFields() as $field_name => $field_item) {
+          // These values are not supposed to be changed/copied over.
+          $excluded_field_names = [
+            $entity_type->getKey('revision'),
+            $entity_type->getKey('id'),
+            $entity_type->getKey('langcode'),
+            $entity_type->getKey('uuid'),
+          ];
+          if (!in_array($field_name, $excluded_field_names, TRUE)) {
+            /** @var \Drupal\Core\Field\FieldItemListInterface $field_item */
+            $translation->set($field_name, $field_item->getValue());
+          }
+        }
+
+        // Now we have synched in the latest published revision.
+        // The next problem which appears is that the editor no longer has an
+        // idea, what the "latest" revision might be.
+        // The workaround applied here is to add another forward revision,
+        // which contains the revision we just published, as well as a copy
+        // of every other translation.
       }
+      $node->setPublished(TRUE);
+
+      $node->contentTranslationWorkflowAdditionalEntity = $forward_revision;
     }
   }
 }
