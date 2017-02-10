@@ -44,13 +44,16 @@ function _content_translation_workflow_load_previous_published_revision_translat
     ->sort('vid', 'DESC')
     ->pager(1)
     ->execute();
-  $revision_id = array_keys($result)[0];
+  // There might be no published translation yet.
+  if (!empty($result)) {
+    $revision_id = array_keys($result)[0];
 
-  /** @var \Drupal\node\NodeInterface $node_revision */
-  $node_revision = $node_storage->loadRevision($revision_id);
+    /** @var \Drupal\node\NodeInterface $node_revision */
+    $node_revision = $node_storage->loadRevision($revision_id);
 
-  if ($node_revision->hasTranslation($language->getId())) {
-    return $node_revision->getTranslation($language->getId());
+    if ($node_revision->hasTranslation($language->getId())) {
+      return $node_revision->getTranslation($language->getId());
+    }
   }
 }
 
