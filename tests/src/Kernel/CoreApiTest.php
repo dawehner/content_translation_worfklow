@@ -100,12 +100,14 @@ class CoreApiTest extends KernelTestBase {
 
     /** @var \Drupal\node\NodeInterface $entity_fr */
     $entity_fr = $entity_en->getTranslation('fr');
+    $entity_fr->setNewRevision(TRUE);
     $entity_fr->set('title', 'fr-name--1');
     $entity_fr->moderation_state->target_id = 'draft';
     $entity_fr->save();
 
     /** @var \Drupal\node\NodeInterface $entity_fr */
     $entity_de = $entity_en->getTranslation('de');
+    $entity_de->setNewRevision(TRUE);
     $entity_de->set('title', 'de-name--1');
     $entity_de->moderation_state->target_id = 'draft';
     $entity_de->save();
@@ -122,8 +124,11 @@ class CoreApiTest extends KernelTestBase {
     $entity = $storage->loadUnchanged($entity_en->id());
     $this->assertTrue($entity->isPublished());
     $this->assertEquals('published', $entity->get('moderation_state')->target_id);
+    $this->assertTrue($entity->isPublished());
     $this->assertEquals('published', $entity->getTranslation('fr')->get('moderation_state')->target_id);
+    $this->assertTrue($entity->getTranslation('fr')->isPublished());
     $this->assertEquals('published', $entity->getTranslation('de')->get('moderation_state')->target_id);
+    $this->assertTrue($entity->getTranslation('de')->isPublished());
     $this->assertEquals('en-name--1', $entity->getTitle());
     $this->assertEquals('fr-name--0', $entity->getTranslation('fr')->getTitle());
     $this->assertEquals('de-name--0', $entity->getTranslation('de')->getTitle());
@@ -134,8 +139,11 @@ class CoreApiTest extends KernelTestBase {
     /** @var \Drupal\node\NodeInterface $latest_revision */
     $latest_revision = $storage->loadRevision($latest_revision_id);
     $this->assertEquals('published', $latest_revision->getTranslation('en')->get('moderation_state')->target_id);
+    $this->assertTrue($latest_revision->isPublished());
     $this->assertEquals('draft', $latest_revision->getTranslation('fr')->get('moderation_state')->target_id);
+    $this->assertFalse($latest_revision->getTranslation('fr')->isPublished());
     $this->assertEquals('draft', $latest_revision->getTranslation('de')->get('moderation_state')->target_id);
+    $this->assertFalse($latest_revision->getTranslation('de')->isPublished());
     $this->assertEquals('en-name--1', $latest_revision->getTitle());
     $this->assertEquals('fr-name--1', $latest_revision->getTranslation('fr')->getTitle());
     $this->assertEquals('de-name--1', $latest_revision->getTranslation('de')->getTitle());
@@ -154,8 +162,11 @@ class CoreApiTest extends KernelTestBase {
     $entity = $storage->loadUnchanged($entity_en->id());
     // $this->assertTrue($entity->isPublished());
     $this->assertEquals('published', $entity->get('moderation_state')->target_id);
+    $this->assertTrue($entity->isPublished());
     $this->assertEquals('published', $entity->getTranslation('fr')->get('moderation_state')->target_id);
+    $this->assertTrue($entity->getTranslation('fr')->isPublished());
     $this->assertEquals('published', $entity->getTranslation('de')->get('moderation_state')->target_id);
+    $this->assertTrue($entity->getTranslation('de')->isPublished());
     $this->assertEquals('en-name--1', $entity->getTitle());
     $this->assertEquals('fr-name--1', $entity->getTranslation('fr')->getTitle());
     $this->assertEquals('de-name--0', $entity->getTranslation('de')->getTitle());
@@ -166,8 +177,11 @@ class CoreApiTest extends KernelTestBase {
     /** @var \Drupal\node\NodeInterface $latest_revision */
     $latest_revision = $storage->loadRevision($latest_revision_id);
     $this->assertEquals('published', $latest_revision->getTranslation('en')->get('moderation_state')->target_id);
+    $this->assertTrue($latest_revision->isPublished());
     $this->assertEquals('published', $latest_revision->getTranslation('fr')->get('moderation_state')->target_id);
+    $this->assertTrue($latest_revision->getTranslation('fr')->isPublished());
     $this->assertEquals('draft', $latest_revision->getTranslation('de')->get('moderation_state')->target_id);
+    $this->assertFalse($latest_revision->getTranslation('de')->isPublished());
     $this->assertEquals('en-name--1', $latest_revision->getTitle());
     $this->assertEquals('fr-name--1', $latest_revision->getTranslation('fr')->getTitle());
     $this->assertEquals('de-name--1', $latest_revision->getTranslation('de')->getTitle());
@@ -184,7 +198,11 @@ class CoreApiTest extends KernelTestBase {
     $entity = $storage->loadUnchanged($entity_en->id());
     $this->assertTrue($entity->isPublished());
     $this->assertEquals('published', $entity->get('moderation_state')->target_id);
+    $this->assertTrue($entity->isPublished());
     $this->assertEquals('published', $entity->getTranslation('fr')->get('moderation_state')->target_id);
+    $this->assertTrue($entity->getTranslation('fr')->isPublished());
+    $this->assertEquals('published', $entity->getTranslation('de')->get('moderation_state')->target_id);
+    $this->assertTrue($entity->getTranslation('de')->isPublished());
     $this->assertEquals('published', $entity->getTranslation('de')->get('moderation_state')->target_id);
     $this->assertEquals('en-name--1', $entity->getTitle());
     $this->assertEquals('fr-name--1', $entity->getTranslation('fr')->getTitle());
