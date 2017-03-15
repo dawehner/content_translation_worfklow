@@ -1,5 +1,6 @@
 <?php
 
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\node\NodeInterface;
 
@@ -57,7 +58,12 @@ function _content_translation_workflow_load_previous_published_revision_translat
   }
 }
 
-function content_translation_workflow_node_presave(NodeInterface $node) {
+function content_translation_workflow_entity_presave(EntityInterface $entity) {
+  if (!$entity instanceof NodeInterface) {
+    return;
+  }
+  $node = $entity;
+
   $node_storage = \Drupal::entityTypeManager()->getStorage('node');
 
   // Ensures to sync over translations to never have an unpublished version.
@@ -93,6 +99,34 @@ function content_translation_workflow_node_presave(NodeInterface $node) {
     }
   }
 }
+
+/**
+ * Implements hook_module_implements_alter().
+ */
+/**
+ * Implements hook_module_implements_alter().
+ */
+function content_translation_workflow_module_implements_alter(&$implementations, $hook) {
+  if ($hook === 'entity_presave') {
+    // Ensure the following order:
+    // - content_translation
+    // - workbench_moderation
+    // - content_translation_workflow
+
+    // We need the following steps to happen: content_translation doing its
+    // field synchronization for untranslatable properties. After that
+    // workbench_moderation needs to update both the moderation_state and
+    // the status 
+    unset($implementations['content_translation'], $implementations['workbench_moderation'], $implementations['content_translation_workflow']);
+    $implementations['content_translation'] = FALSE;
+    $implementations['workbench_moderation'] = FALSE;
+    $implementations['content_translation_workflow'] = FALSE;
+  }
+}
+
+/**
+ * @param \Drupal\node\NodeInterface $node
+ */
 
 function content_translation_workflow_node_update(NodeInterface $node) {
   if (!empty($node->contentTranslationWorkflowAdditionalEntity) && ($forward_revision = $node->contentTranslationWorkflowAdditionalEntity) && $forward_revision instanceof NodeInterface) {
