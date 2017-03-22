@@ -357,4 +357,7 @@ class CoreApiTest extends KernelTestBase {
     $this->assertEquals($latest_revision_id, $entity->getRevisionId());
   }
 
+  // @fixme add test coverage for the problem by using the status filter in 
+  // \_content_translation_workflow_load_previous_published_revision_translation()
+
 }

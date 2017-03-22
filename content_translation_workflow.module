@@ -40,7 +40,7 @@ function _content_translation_workflow_load_previous_published_revision_translat
     ->allRevisions()
     ->condition('langcode', $language->getId())
     ->condition('revision_translation_affected', TRUE)
-    ->condition('moderation_state.target_id', 'published')
+    ->condition('status', 1)
     ->condition('nid', $revision->id())
     ->sort('vid', 'DESC')
     ->pager(1)
