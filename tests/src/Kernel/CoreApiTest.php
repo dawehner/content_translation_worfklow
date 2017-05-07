@@ -367,4 +367,123 @@ class CoreApiTest extends KernelTestBase {
   // @fixme add test coverage for the problem by using the status filter in 
   // \_content_translation_workflow_load_previous_published_revision_translation()
 
+  public function testApiWithAlotOfLanguages() {
+    ConfigurableLanguage::createFromLangcode('es')->save();
+    ConfigurableLanguage::createFromLangcode('ja')->save();
+    ConfigurableLanguage::createFromLangcode('zh-hans')->save();
+    ConfigurableLanguage::createFromLangcode('ko')->save();
+    ConfigurableLanguage::createFromLangcode('pt-br')->save();
+
+    // Ensure to have the following revision workflow status:
+    // en: previously published, draft
+    // es: previously published, published
+    // ja: previously published, published
+    // zh-hans: previously published, published
+    // ko: not previously published, draft
+    // de : not previously published, draft
+    // fr: previously published, published
+    // pt-br: not translated yet
+
+    $storage = \Drupal::entityTypeManager()->getStorage('node');
+    /** @var \Drupal\workbench_moderation\ModerationInformationInterface $moderation_information */
+    $moderation_information = \Drupal::service('workbench_moderation.moderation_information');
+
+    $entity = Node::create([
+      'type' => 'article',
+      'title' => 'en-name--0',
+      'moderation_state' => ['target_id' => 'published'],
+      'status' => 1,
+    ]);
+    $entity->save();
+
+    $entity = $entity->addTranslation('es')
+      ->set('moderation_state', ['target_id' => 'published'])
+      ->setTitle('es-name--0')
+      ->setPublished(TRUE);
+    $entity->save();
+
+    $entity = $entity->addTranslation('ja')
+      ->set('moderation_state', ['target_id' => 'published'])
+      ->setTitle('ja-name--0')
+      ->setPublished(TRUE);
+    $entity->save();
+
+    $entity = $entity->addTranslation('zh-hans')
+      ->set('moderation_state', ['target_id' => 'published'])
+      ->setTitle('zh-hans-name--0')
+      ->setPublished(TRUE);
+    $entity->save();
+
+    $entity = $entity->addTranslation('fr')
+      ->set('moderation_state', ['target_id' => 'published'])
+      ->setTitle('fr-name--0')
+      ->setPublished(TRUE);
+    $entity->save();
+
+    $entity = $entity->addTranslation('ko')
+      ->set('moderation_state', ['target_id' => 'draft'])
+      ->setTitle('ko-name--0')
+      ->setPublished(FALSE);
+    $entity->save();
+
+    $entity = $entity->addTranslation('de')
+      ->set('moderation_state', ['target_id' => 'draft'])
+      ->setTitle('de-name--0')
+      ->setPublished(FALSE);
+    $entity->save();
+
+    $latest_revision_id = $moderation_information->getLatestRevisionId('node', $entity->id());
+    /** @var \Drupal\node\NodeInterface $entity */
+    $entity = $storage->loadRevision($latest_revision_id);
+
+    $entity->setNewRevision(TRUE);
+    $entity
+      ->set('moderation_state', ['target_id' => 'draft'])
+      ->save();
+
+    $latest_revision_id = $moderation_information->getLatestRevisionId('node', $entity->id());
+    $entity = $storage->loadRevision($latest_revision_id);
+    /** @var \Drupal\node\NodeInterface $default_revision */
+    $default_revision = $storage->load($entity->id());
+
+    $this->assertFalse($entity->isPublished());
+    $this->assertFalse($entity->isDefaultRevision());
+    $this->assertTrue($default_revision->isPublished());
+    $this->assertTrue($default_revision->isDefaultRevision());
+    $this->assertTrue($entity->getTranslation('es')->isPublished());
+    $this->assertTrue($default_revision->getTranslation('es')->isPublished());
+    $this->assertTrue($entity->getTranslation('ja')->isPublished());
+    $this->assertTrue($default_revision->getTranslation('ja')->isPublished());
+    $this->assertTrue($entity->getTranslation('zh-hans')->isPublished());
+    $this->assertTrue($default_revision->getTranslation('zh-hans')->isPublished());
+    $this->assertFalse($entity->getTranslation('ko')->isPublished());
+    $this->assertFalse($default_revision->getTranslation('ko')->isPublished());
+    $this->assertFalse($entity->getTranslation('de')->isPublished());
+    $this->assertFalse($default_revision->getTranslation('de')->isPublished());
+
+    // Try to set some other language to draft.
+    $entity->getTranslation('es')->set('moderation_state', ['target_id' => 'draft'])
+      ->save();
+
+    $latest_revision_id = $moderation_information->getLatestRevisionId('node', $entity->id());
+    $entity = $storage->loadRevision($latest_revision_id);
+    /** @var \Drupal\node\NodeInterface $default_revision */
+    $default_revision = $storage->load($entity->id());
+
+    $this->assertFalse($entity->isPublished());
+    $this->assertFalse($entity->isDefaultRevision());
+    $this->assertTrue($default_revision->isPublished());
+    $this->assertTrue($default_revision->isDefaultRevision());
+    $this->assertFalse($entity->getTranslation('es')->isPublished());
+    $this->assertTrue($default_revision->getTranslation('es')->isPublished());
+    $this->assertTrue($entity->getTranslation('ja')->isPublished());
+    $this->assertTrue($default_revision->getTranslation('ja')->isPublished());
+    $this->assertTrue($entity->getTranslation('zh-hans')->isPublished());
+    $this->assertTrue($default_revision->getTranslation('zh-hans')->isPublished());
+    $this->assertFalse($entity->getTranslation('ko')->isPublished());
+    $this->assertFalse($default_revision->getTranslation('ko')->isPublished());
+    $this->assertFalse($entity->getTranslation('de')->isPublished());
+    $this->assertFalse($default_revision->getTranslation('de')->isPublished());
+  }
+
 }
