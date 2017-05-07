@@ -223,9 +223,10 @@ class CoreApiTest extends KernelTestBase {
       'type' => 'article',
       'title' => 'en-name--0',
       'moderation_state' => ['target_id' => 'published'],
+      'status' => 1,
     ]);
-    $entity->addTranslation('fr', ['title' => 'fr-name--0', 'moderation_state' => ['target_id' => 'published']]);
-    $entity->addTranslation('de', ['title' => 'de-name--0', 'moderation_state' => ['target_id' => 'draft']]);
+    $entity->addTranslation('fr', ['title' => 'fr-name--0', 'moderation_state' => ['target_id' => 'published'], 'status' => 1]);
+    $entity->addTranslation('de', ['title' => 'de-name--0', 'moderation_state' => ['target_id' => 'draft'], 'status' => 0]);
     $this->assertCount(0, $entity->validate());
     $entity->save();
 
@@ -235,13 +236,16 @@ class CoreApiTest extends KernelTestBase {
     $this->assertEquals('de-name--0', $entity->getTranslation('de')->label());
 
     /** @var \Drupal\node\NodeInterface $entity_en */
-    $entity_en = clone $entity;
+    $latest_revision_id = $moderation_information->getLatestRevisionId('node', $entity->id());
+    $entity_en = $storage->loadRevision($latest_revision_id);
     $entity_en->setNewRevision(TRUE);
     $entity_en->set('title', 'en-name--1');
     $entity_en->moderation_state->target_id = 'draft';
     $entity_en->save();
 
     /** @var \Drupal\node\NodeInterface $entity_fr */
+    $latest_revision_id = $moderation_information->getLatestRevisionId('node', $entity->id());
+    $entity_en = $storage->loadRevision($latest_revision_id);
     $entity_fr = $entity_en->getTranslation('fr');
     $entity_fr->setNewRevision(TRUE);
     $entity_fr->set('title', 'fr-name--1');
@@ -249,6 +253,8 @@ class CoreApiTest extends KernelTestBase {
     $entity_fr->save();
 
     /** @var \Drupal\node\NodeInterface $entity_fr */
+    $latest_revision_id = $moderation_information->getLatestRevisionId('node', $entity->id());
+    $entity_en = $storage->loadRevision($latest_revision_id);
     $entity_de = $entity_en->getTranslation('de');
     $entity_de->setNewRevision(TRUE);
     $entity_de->set('title', 'de-name--1');
@@ -256,10 +262,11 @@ class CoreApiTest extends KernelTestBase {
     $entity_de->save();
 
     // Publish the english language. of the languages.
-    $entity_en = $storage->loadRevision($entity_en->getRevisionId());
+    $latest_revision_id = $moderation_information->getLatestRevisionId('node', $entity->id());
+    $entity_en = $storage->loadRevision($latest_revision_id);
     $entity_en->isDefaultRevision(TRUE);
     $entity_en->setPublished(TRUE);
-    $entity_en->moderation_state->target_id = 'published';
+    $entity_en->get('moderation_state')->target_id = 'published';
     $entity_en->save();
     $this->ensureForwardRevision();
 
