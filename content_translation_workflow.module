@@ -38,6 +38,9 @@ function _content_translation_workflow_load_previous_published_revision_translat
   $language = $revision->language();
   $result = $node_storage->getQuery()
     ->allRevisions()
+    // It might be the case that the current user cannot access certain
+    // revisions. It is better to be safe than sorry here.
+    ->accessCheck(FALSE)
     ->condition('langcode', $language->getId())
     ->condition('revision_translation_affected', TRUE)
     ->condition('status', 1)
