@@ -7,4 +7,4 @@ Without this module you are not able to create published versions in just one la
 
 ##
 
-This module is also available on (https://www.drupal.org/project/content_translation_workflow)[drupal.org]
+This module is also available on [drupal.org](https://www.drupal.org/project/content_translation_workflow)
