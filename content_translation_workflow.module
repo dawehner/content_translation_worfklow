@@ -97,6 +97,7 @@ function content_translation_workflow_entity_presave(EntityInterface $entity) {
         // of every other translation.
       }
       $node->setPublished(TRUE);
+      $forward_revision->setPublished(TRUE);
 
       $node->contentTranslationWorkflowAdditionalEntity = $forward_revision;
     }
